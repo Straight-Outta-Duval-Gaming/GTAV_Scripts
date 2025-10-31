@@ -4,7 +4,7 @@ Config = {}
 -- You can find other models here: https://docs.fivem.net/docs/game-references/ped-models/
 Config.NPCModel = 's_m_y_shop_01' -- This is a generic shopkeeper model
 Config.NPCLocation = {
-coords = vector3(3533.89, 3726.43, 36.45), -- Location next to Humane Labs
+coords = vector3(3533.89, 3726.43, 37.45), -- Location next to Humane Labs
 heading = 180.0
 }
 

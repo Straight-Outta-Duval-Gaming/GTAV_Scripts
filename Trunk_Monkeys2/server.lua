@@ -1,5 +1,7 @@
--- Player data table
-local playerData = {}
+-- Vehicle data table
+-- Note: This table is not persistent. If the server restarts, all monkey data will be lost.
+-- For persistence, integrate this with your server's database or storage solution.
+local vehicleData = {}
 
 -- A placeholder function to get a player's job.
 -- Server owners should replace this with their actual job-checking function.
@@ -21,10 +23,10 @@ local function notify(source, message, type)
 end
 
 -- A placeholder function to remove money from a player.
--- Server owners should replace this with their actual economy system.
+-- !! IMPORTANT !! Server owners MUST replace this with their actual economy system.
+-- For testing purposes, this is set to TRUE. In a live environment, this means monkeys are FREE.
 function RemoveMoney(source, amount)
-    -- This is just an example. You should replace this with your own logic.
-    -- For instance, if you are using ESX, you might do something like:
+    -- EXAMPLE for ESX:
     -- local xPlayer = ESX.GetPlayerFromId(source)
     -- if xPlayer.getMoney() >= amount then
     --     xPlayer.removeMoney(amount)
@@ -32,26 +34,31 @@ function RemoveMoney(source, amount)
     -- else
     --     return false
     -- end
+
+    -- EXAMPLE for QBCore:
+    -- local Player = QBCore.Functions.GetPlayer(source)
+    -- if Player.Functions.RemoveMoney('cash', amount) then
+    --     return true
+    -- else
+    --     return false
+    -- end
+
     return true
 end
 
 -- Event to handle monkey purchase
-RegisterNetEvent('TrunkMonkeys:server:BuyMonkeys', function()
+RegisterNetEvent('TrunkMonkeys:server:BuyMonkeys', function(vehicleNetId)
     local src = source
 
-    if not playerData[src] then
-        playerData[src] = { hasMonkeys = false }
-    end
-
-    -- Check if player already has monkeys
-    if playerData[src] and playerData[src].hasMonkeys then
-        notify(src, "You can only carry one batch of monkeys at a time.", "error")
+    -- Check if vehicle already has monkeys
+    if vehicleData[vehicleNetId] and vehicleData[vehicleNetId].hasMonkeys then
+        notify(src, "This vehicle already has monkeys.", "error")
         return
     end
 
     -- Charge the player
     if RemoveMoney(src, Config.MonkeyPrice) then
-        playerData[src].hasMonkeys = true
+        vehicleData[vehicleNetId] = { hasMonkeys = true }
         TriggerClientEvent('TrunkMonkeys:client:ReceiveMonkeys', src)
         notify(src, "You paid $" .. Config.MonkeyPrice .. " for a batch of angry monkeys.", "success")
     else
@@ -62,24 +69,25 @@ end)
 -- Event to handle monkey release
 RegisterNetEvent('TrunkMonkeys:server:ReleaseMonkeys', function(plate, vehicleNetId)
     local src = source
-    playerData[src].hasMonkeys = false
+    if not vehicleData[vehicleNetId] or not vehicleData[vehicleNetId].hasMonkeys then
+        notify(src, "You don't have any monkeys to release.", "error")
+        return
+    end
+    vehicleData[vehicleNetId] = { hasMonkeys = false }
 
-    -- Get all players except the source player
+    -- Get all players and their jobs
     local players = GetPlayers()
-    local otherPlayers = {}
+    local playerData = {}
     for _, player in ipairs(players) do
         if tonumber(player) ~= src then
-            table.insert(otherPlayers, player)
+            playerData[player] = GetPlayerJob(tonumber(player))
         end
     end
 
-    TriggerClientEvent('TrunkMonkeys:client:SpawnMonkeys', src, vehicleNetId, otherPlayers)
+    TriggerClientEvent('TrunkMonkeys:client:SpawnMonkeys', src, vehicleNetId, playerData)
 end)
 
 -- Player disconnect handling
 AddEventHandler('playerDropped', function()
     local src = source
-    if playerData[src] then
-        playerData[src] = nil
-    end
 end)
