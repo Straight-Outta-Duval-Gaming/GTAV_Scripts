@@ -48,10 +48,12 @@ CreateThread(function()
 
     -- Spawn the NPC
     local npc = CreatePed(4, Config.NPCModel, Config.NPCLocation.coords.x, Config.NPCLocation.coords.y, Config.NPCLocation.coords.z + 50.0, Config.NPCLocation.heading, true, true)
+    Wait(500) -- Wait for the entity to register
     PlaceObjectOnGroundProperly(npc)
     FreezeEntityPosition(npc, true)
     SetEntityInvincible(npc, true)
     SetBlockingOfNonTemporaryEvents(npc, true)
+    TaskStandStill(npc, -1) -- Tell the AI to not move
 
     -- Add a target option to the NPC
     exports['qb-target']:AddTargetEntity(npc, {
