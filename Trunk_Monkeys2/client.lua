@@ -95,8 +95,13 @@ RegisterNetEvent('TrunkMonkeys:client:ReleaseMonkeys', function()
     local vehicle = GetClosestVehicle(playerCoords.x, playerCoords.y, playerCoords.z, Config.VehicleCheckRadius, 0, 70)
 
     if DoesEntityExist(vehicle) then
-        notification("The monkeys are loose! Good luck.", "success")
-        TriggerServerEvent('TrunkMonkeys:server:ReleaseMonkeys', GetVehicleNumberPlateText(vehicle), NetworkGetNetworkIdFromEntity(vehicle))
+        local vehicleClass = GetVehicleClass(vehicle)
+        if not Config.DisallowedClasses[vehicleClass] then
+            notification("The monkeys are loose! Good luck.", "success")
+            TriggerServerEvent('TrunkMonkeys:server:ReleaseMonkeys', GetVehicleNumberPlateText(vehicle), NetworkGetNetworkIdFromEntity(vehicle))
+        else
+            notification("You cannot release monkeys from this type of vehicle.", "error")
+        end
     else
         notification("You need to be near a vehicle to release the monkeys.", "error")
     end
@@ -215,7 +220,7 @@ RegisterNetEvent('TrunkMonkeys:client:SpawnMonkeys', function(vehicleNetId, play
             end
             spawnedMonkeys = existingMonkeys
             local elapsedTime = GetGameTimer() - startTime
-            if #spawnedMonkeys == _ or (activeCombatants == 0 and elapsedTime > 10000) or elapsedTime > Config.MonkeyMaxLifespan then
+            if #spawnedMonkeys == 0 or (activeCombatants == 0 and elapsedTime > 10000) or elapsedTime > Config.MonkeyMaxLifespan then
                 monkeysAreActive = false
             end
         end
