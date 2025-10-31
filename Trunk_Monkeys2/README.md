@@ -20,7 +20,7 @@ This script allows players to buy a "batch" of angry monkeys from a shady NPC, s
 ## How to Use
 
 1.  **Find the NPC:** Go to Humane Labs (or wherever you've configured the NPC to be).
-2.  **Buy the Monkeys:** Look at the NPC and press 'E' to buy the monkeys. You must be standing near a valid vehicle.
+2.  **Buy the Monkeys:** Look at the NPC to open the purchase menu. You must be standing near a valid vehicle.
 3.  **Release the Monkeys:** Once the monkeys are in your trunk, you can release them in one of two ways:
     *   Use the `/releasemonkeys` command in chat.
     *   Integrate the `TrunkMonkeys:client:ReleaseMonkeys` event into a phone app or another trigger for a more seamless experience.

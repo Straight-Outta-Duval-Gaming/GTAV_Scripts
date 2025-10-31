@@ -43,7 +43,7 @@ function RemoveMoney(source, amount)
     --     return false
     -- end
 
-    return true
+    return false
 end
 
 -- Event to handle monkey purchase

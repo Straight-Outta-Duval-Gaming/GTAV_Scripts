@@ -41,32 +41,35 @@ end)
 -- Main loop for player interaction
 CreateThread(function()
     while true do
-        Wait(500) -- Check twice a second, no need to run every frame
+        Wait(100) -- Check more frequently for a responsive interaction
 
-        if menuOpen then
-            Wait(100) -- Don't check if the menu is already open
-            goto continue
-        end
+        if not menuOpen then
+            local playerPed = PlayerPedId()
+            local playerCoords = GetEntityCoords(playerPed)
 
-        local playerPed = PlayerPedId()
-        local playerCoords = GetEntityCoords(playerPed)
+            if #(playerCoords - Config.NPCLocation.coords) < 5.0 then -- Only do raycast when player is close
+                local forwardVector = GetEntityForwardVector(playerPed)
+                local rayStart = GetOffsetFromEntityInWorldCoords(playerPed, 0.0, 1.0, 0.5)
+                local rayEnd = rayStart + forwardVector * 2.0
 
-        if #(playerCoords - Config.NPCLocation.coords) < 5.0 then -- Only do raycast when player is close
-            local forwardVector = GetEntityForwardVector(playerPed)
-            local rayStart = GetOffsetFromEntityInWorldCoords(playerPed, 0.0, 1.0, 0.5)
-            local rayEnd = rayStart + forwardVector * 2.0
+                local _, _, _, _, entityHit = GetShapeTestResult(StartShapeTestRay(rayStart.x, rayStart.y, rayStart.z, rayEnd.x, rayEnd.y, rayEnd.z, 2, playerPed, 4))
 
-            local _, _, _, _, entityHit = GetShapeTestResult(StartShapeTestRay(rayStart.x, rayStart.y, rayStart.z, rayEnd.x, rayEnd.y, rayEnd.z, 2, playerPed, 4))
+                if entityHit == npc then
+                    -- Display a prompt to the user
+                    -- For simplicity, we'll use a basic text prompt. A more advanced solution would use a UI element.
+                    -- This part can be customized to fit your server's UI system.
+                    SetTextComponentFormat("STRING")
+                    AddTextComponentString("Press ~INPUT_CONTEXT~ to talk to the monkey dealer.")
+                    DisplayHelpTextFromStringLabel(0, 0, 1, -1)
 
-            if entityHit == npc then
-                if not menuOpen then
-                    SendNUIMessage({ action = 'open' })
-                    menuOpen = true
-                    SetNuiFocus(true, true)
+                    if IsControlJustReleased(0, 38) then -- 38 is the 'E' key
+                        SendNUIMessage({ action = 'open' })
+                        menuOpen = true
+                        SetNuiFocus(true, true)
+                    end
                 end
             end
         end
-        ::continue::
     end
 end)
 
@@ -205,9 +208,10 @@ RegisterNetEvent('TrunkMonkeys:client:SpawnMonkeys', function(vehicleNetId, play
     -- Monkey lifecycle
     CreateThread(function()
         local startTime = GetGameTimer()
+        local lastCombatTime = GetGameTimer()
         local monkeysAreActive = true
         while monkeysAreActive do
-            Wait(5000)
+            Wait(1000) -- Check every second
             local activeCombatants = 0
             local existingMonkeys = {}
             for _, monkey in pairs(spawnedMonkeys) do
@@ -219,8 +223,15 @@ RegisterNetEvent('TrunkMonkeys:client:SpawnMonkeys', function(vehicleNetId, play
                 end
             end
             spawnedMonkeys = existingMonkeys
+
+            if activeCombatants > 0 then
+                lastCombatTime = GetGameTimer()
+            end
+
+            local timeSinceLastCombat = GetGameTimer() - lastCombatTime
             local elapsedTime = GetGameTimer() - startTime
-            if #spawnedMonkeys == 0 or (activeCombatants == 0 and elapsedTime > 10000) or elapsedTime > Config.MonkeyMaxLifespan then
+
+            if #spawnedMonkeys == 0 or timeSinceLastCombat > 10000 or elapsedTime > Config.MonkeyMaxLifespan then
                 monkeysAreActive = false
             end
         end
