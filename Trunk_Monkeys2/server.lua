@@ -1,4 +1,6 @@
 -- Vehicle data table
+-- Note: This table is not persistent. If the server restarts, all monkey data will be lost.
+-- For persistence, integrate this with your server's database or storage solution.
 local vehicleData = {}
 
 -- A placeholder function to get a player's job.
@@ -21,10 +23,10 @@ local function notify(source, message, type)
 end
 
 -- A placeholder function to remove money from a player.
--- Server owners should replace this with their actual economy system.
+-- !! IMPORTANT !! Server owners MUST replace this with their actual economy system.
+-- For testing purposes, this is set to TRUE. In a live environment, this means monkeys are FREE.
 function RemoveMoney(source, amount)
-    -- This is just an example. You should replace this with your own logic.
-    -- For instance, if you are using ESX, you might do something like:
+    -- EXAMPLE for ESX:
     -- local xPlayer = ESX.GetPlayerFromId(source)
     -- if xPlayer.getMoney() >= amount then
     --     xPlayer.removeMoney(amount)
@@ -32,6 +34,15 @@ function RemoveMoney(source, amount)
     -- else
     --     return false
     -- end
+
+    -- EXAMPLE for QBCore:
+    -- local Player = QBCore.Functions.GetPlayer(source)
+    -- if Player.Functions.RemoveMoney('cash', amount) then
+    --     return true
+    -- else
+    --     return false
+    -- end
+
     return true
 end
 
@@ -58,6 +69,10 @@ end)
 -- Event to handle monkey release
 RegisterNetEvent('TrunkMonkeys:server:ReleaseMonkeys', function(plate, vehicleNetId)
     local src = source
+    if not vehicleData[vehicleNetId] or not vehicleData[vehicleNetId].hasMonkeys then
+        notify(src, "You don't have any monkeys to release.", "error")
+        return
+    end
     vehicleData[vehicleNetId] = { hasMonkeys = false }
 
     -- Get all players and their jobs
@@ -75,13 +90,4 @@ end)
 -- Player disconnect handling
 AddEventHandler('playerDropped', function()
     local src = source
-end)
-
-RegisterNetEvent('TrunkMonkeys:server:CheckHasMonkeys', function(vehicleNetId)
-    local src = source
-    local hasMonkeys = false
-    if vehicleData[vehicleNetId] and vehicleData[vehicleNetId].hasMonkeys then
-        hasMonkeys = true
-    end
-    TriggerClientEvent('TrunkMonkeys:client:ReceiveHasMonkeys', src, hasMonkeys)
 end)
