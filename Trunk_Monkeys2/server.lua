@@ -1,93 +1,53 @@
--- Vehicle data table
--- Note: This table is not persistent. If the server restarts, all monkey data will be lost.
--- For persistence, integrate this with your server's database or storage solution.
-local vehicleData = {}
+-- Callback to handle the purchase
+QBCore.Functions.CreateCallback('TrunkMonkeys:server:BuyMonkeys', function(source, cb)
+    local player = QBCore.Functions.GetPlayer(source)
 
--- A placeholder function to get a player's job.
--- Server owners should replace this with their actual job-checking function.
-function GetPlayerJob(source)
-    -- This is just an example. You should replace this with your own logic.
-    -- For instance, if you are using ESX, you might do something like:
-    -- local xPlayer = ESX.GetPlayerFromId(source)
-    -- return xPlayer.job.name
-    return 'unemployed'
-end
-
--- Basic notification function
-local function notify(source, message, type)
-    TriggerClientEvent('chat:addMessage', source, {
-        color = { 255, 0, 0 },
-        multiline = true,
-        args = { "[TrunkMonkeys]", message }
-    })
-end
-
--- A placeholder function to remove money from a player.
--- !! IMPORTANT !! Server owners MUST replace this with their actual economy system.
--- For testing purposes, this is set to TRUE. In a live environment, this means monkeys are FREE.
-function RemoveMoney(source, amount)
-    -- EXAMPLE for ESX:
-    -- local xPlayer = ESX.GetPlayerFromId(source)
-    -- if xPlayer.getMoney() >= amount then
-    --     xPlayer.removeMoney(amount)
-    --     return true
-    -- else
-    --     return false
-    -- end
-
-    -- EXAMPLE for QBCore:
-    -- local Player = QBCore.Functions.GetPlayer(source)
-    -- if Player.Functions.RemoveMoney('cash', amount) then
-    --     return true
-    -- else
-    --     return false
-    -- end
-
-    return true
-end
-
--- Event to handle monkey purchase
-RegisterNetEvent('TrunkMonkeys:server:BuyMonkeys', function(vehicleNetId)
-    local src = source
-
-    -- Check if vehicle already has monkeys
-    if vehicleData[vehicleNetId] and vehicleData[vehicleNetId].hasMonkeys then
-        notify(src, "This vehicle already has monkeys.", "error")
+    if not player then
+        cb(false)
         return
     end
 
-    -- Charge the player
-    if RemoveMoney(src, Config.MonkeyPrice) then
-        vehicleData[vehicleNetId] = { hasMonkeys = true }
-        TriggerClientEvent('TrunkMonkeys:client:ReceiveMonkeys', src)
-        notify(src, "You paid $" .. Config.MonkeyPrice .. " for a batch of angry monkeys.", "success")
+    -- Try to remove the money (checks both cash and bank)
+    if player.Functions.RemoveMoney('cash', Config.MonkeyPrice, "bought-attack-monkeys") then
+        cb(true) -- Payment successful
     else
-        notify(src, "You don't have enough cash.", "error")
+        cb(false) -- Not enough money
     end
 end)
 
--- Event to handle monkey release
-RegisterNetEvent('TrunkMonkeys:server:ReleaseMonkeys', function(plate, vehicleNetId)
+-- Event to set the vehicle state after successful purchase
+RegisterNetEvent('TrunkMonkeys:server:StoreMonkeysInVehicle', function(vehicleNetId)
     local src = source
-    if not vehicleData[vehicleNetId] or not vehicleData[vehicleNetId].hasMonkeys then
-        notify(src, "You don't have any monkeys to release.", "error")
-        return
-    end
-    vehicleData[vehicleNetId] = { hasMonkeys = false }
+    local player = QBCore.Functions.GetPlayer(src)
+    if not player then return end
 
-    -- Get all players and their jobs
-    local players = GetPlayers()
-    local playerData = {}
-    for _, player in ipairs(players) do
-        if tonumber(player) ~= src then
-            playerData[player] = GetPlayerJob(tonumber(player))
-        end
+    local vehicle = NetworkGetEntityFromNetworkId(vehicleNetId)
+    if DoesEntityExist(vehicle) then
+        -- Set a persistent state on the vehicle
+        Entity(vehicle).state:set("hasMonkeys", true, true)
+        player.Functions.Notify("A new batch of monkeys has been loaded into your vehicle's trunk.", "success")
     end
-
-    TriggerClientEvent('TrunkMonkeys:client:SpawnMonkeys', src, vehicleNetId, playerData)
 end)
 
--- Player disconnect handling
-AddEventHandler('playerDropped', function()
+-- Event to clear the vehicle state after monkeys are released
+RegisterNetEvent('TrunkMonkeys:server:RemoveMonkeysFromVehicle', function(vehicleNetId)
     local src = source
+    local player = QBCore.Functions.GetPlayer(src)
+    if not player then return end
+
+    local vehicle = NetworkGetEntityFromNetworkId(vehicleNetId)
+    if DoesEntityExist(vehicle) then
+        -- Clear the state
+        Entity(vehicle).state:set("hasMonkeys", false, true)
+        player.Functions.Notify("The monkeys are loose!", "warning")
+    end
+end)
+
+QBCore.Functions.CreateCallback('TrunkMonkeys:server:GetPlayerJob', function(source, cb, targetId)
+    local target = QBCore.Functions.GetPlayer(targetId)
+    if target then
+        cb(target.PlayerData.job.name)
+    else
+        cb(nil)
+    end
 end)
