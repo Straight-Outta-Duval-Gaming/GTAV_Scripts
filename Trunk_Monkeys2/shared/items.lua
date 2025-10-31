@@ -1,0 +1,14 @@
+-- For a standalone script, we don't have a shared item registry.
+-- However, if you were to integrate this with an inventory system,
+-- you would add an item for the monkeys here. For example:
+
+-- ['trunk_monkeys'] = {
+--     name = 'trunk_monkeys',
+--     label = 'Trunk Monkeys',
+--     weight = 0,
+--     type = 'item',
+--     image = 'trunk_monkeys.png', -- You would need to add this image to your inventory's html/images folder
+--     unique = true,
+--     useable = false,
+--     description = 'A set of three very angry monkeys. Handle with care.'
+-- },
