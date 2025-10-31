@@ -1,4 +1,3 @@
-local playerJob = 'unemployed'
 local hasMonkeys = false
 
 -- Basic notification function
@@ -36,7 +35,18 @@ CreateThread(function()
         RequestModel(hash)
         Wait(20)
     end
-    npc = CreatePed(4, hash, Config.NPCLocation.coords.x, Config.NPCLocation.coords.y, Config.NPCLocation.coords.z, Config.NPCLocation.heading, false, true)
+
+    local x, y, z = Config.NPCLocation.coords.x, Config.NPCLocation.coords.y, Config.NPCLocation.coords.z
+    local foundGround, groundZ = GetGroundZFor_3dCoord(x, y, z + 50.0, false)
+
+    if not foundGround then
+        print("[TrunkMonkeys] Could not find ground for NPC, using configured Z-coordinate as fallback.")
+        groundZ = z
+    end
+
+    print("[TrunkMonkeys] Spawning NPC at coordinates: " .. x .. ", " .. y .. ", " .. groundZ)
+
+    npc = CreatePed(4, hash, x, y, groundZ, Config.NPCLocation.heading, false, true)
     FreezeEntityPosition(npc, true)
     SetEntityInvincible(npc, true)
     SetBlockingOfNonTemporaryEvents(npc, true)
@@ -79,35 +89,7 @@ end)
 
 -- Command to release the monkeys
 RegisterCommand('releasemonkeys', function()
-    local playerPed = PlayerPedId()
-    local playerCoords = GetEntityCoords(playerPed)
-    local vehicle = GetClosestVehicle(playerCoords.x, playerCoords.y, playerCoords.z, Config.VehicleCheckRadius, 0, 70)
-
-    if DoesEntityExist(vehicle) then
-        TriggerServerEvent('TrunkMonkeys:server:CheckHasMonkeys', NetworkGetNetworkIdFromEntity(vehicle))
-        local timeout = 1000
-        while not hasMonkeys and timeout > 0 do
-            Wait(10)
-            timeout = timeout - 10
-        end
-
-        if hasMonkeys then
-            -- Check for disallowed vehicle classes
-            local vehicleClass = GetVehicleClass(vehicle)
-            if Config.DisallowedClasses[vehicleClass] then
-                notification("You cannot release monkeys from this type of vehicle.", "error")
-                return
-            end
-
-            notification("The monkeys are loose! Good luck.", "success")
-            TriggerServerEvent('TrunkMonkeys:server:ReleaseMonkeys', GetVehicleNumberPlateText(vehicle), NetworkGetNetworkIdFromEntity(vehicle))
-        else
-            notification("You don't have any monkeys to release.", "error")
-        end
-        hasMonkeys = false
-    else
-        notification("You need to be near a vehicle to release the monkeys.", "error")
-    end
+    TriggerEvent('TrunkMonkeys:client:ReleaseMonkeys')
 end, false)
 
 -- Event to trigger monkey release (for phone integration, etc.)
@@ -118,30 +100,12 @@ RegisterNetEvent('TrunkMonkeys:client:ReleaseMonkeys', function()
 
     if DoesEntityExist(vehicle) then
         TriggerServerEvent('TrunkMonkeys:server:CheckHasMonkeys', NetworkGetNetworkIdFromEntity(vehicle))
-        local timeout = 1000
-        while not hasMonkeys and timeout > 0 do
-            Wait(10)
-            timeout = timeout - 10
-        end
-        if hasMonkeys then
-            local vehicleClass = GetVehicleClass(vehicle)
-            if Config.DisallowedClasses[vehicleClass] then
-                notification("You cannot release monkeys from this type of vehicle.", "error")
-                return
-            end
-
-            notification("The monkeys are loose! Good luck.", "success")
-            TriggerServerEvent('TrunkMonkeys:server:ReleaseMonkeys', GetVehicleNumberPlateText(vehicle), NetworkGetNetworkIdFromEntity(vehicle))
-        else
-            notification("You don't have any monkeys to release.", "error")
-        end
-        hasMonkeys = false
     else
         notification("You need to be near a vehicle to release the monkeys.", "error")
     end
 end)
 
-RegisterNetEvent('TrunkMonkeys:client:SpawnMonkeys', function(vehicleNetId, otherPlayers)
+RegisterNetEvent('TrunkMonkeys:client:SpawnMonkeys', function(vehicleNetId, playerData)
     local vehicle = NetworkGetEntityFromNetworkId(vehicleNetId)
     if not DoesEntityExist(vehicle) then return end
 
@@ -184,18 +148,9 @@ RegisterNetEvent('TrunkMonkeys:client:SpawnMonkeys', function(vehicleNetId, othe
                 -- No immediate threat, find player's target
                 local targeted, targetEntity = GetPlayerTargetEntity(PlayerId())
                 if targeted and IsPed(targetEntity) then
-                    local targetPlayer = NetworkGetPlayerIndexFromPed(targetEntity)
-                    if targetPlayer then
-                        TriggerServerEvent('TrunkMonkeys:server:GetPlayerJob', GetPlayerServerId(targetPlayer))
-                        local timeout = 1000
-                        while not playerJob and timeout > 0 do
-                            Wait(10)
-                            timeout = timeout - 10
-                        end
-                        if playerJob and not Config.OnDutyJobs[playerJob] then
-                            TaskCombatPed(monkey, targetEntity, 0, 16)
-                        end
-                        playerJob = nil
+                    local isPlayer, player = IsPedAPlayer(targetEntity)
+                    if isPlayer and not Config.OnDutyJobs[playerData[tostring(player)]] then
+                        TaskCombatPed(monkey, targetEntity, 0, 16)
                     else
                         TaskCombatPed(monkey, targetEntity, 0, 16)
                     end
@@ -204,23 +159,14 @@ RegisterNetEvent('TrunkMonkeys:client:SpawnMonkeys', function(vehicleNetId, othe
                     local closestPlayer = nil
                     local closestDistance = -1
 
-                    for _, player in ipairs(otherPlayers) do
+                    for player, job in pairs(playerData) do
                         local targetPed = GetPlayerPed(tonumber(player))
-                        if DoesEntityExist(targetPed) then
-                            TriggerServerEvent('TrunkMonkeys:server:GetPlayerJob', GetPlayerServerId(tonumber(player)))
-                            local timeout = 1000
-                            while not playerJob and timeout > 0 do
-                                Wait(10)
-                                timeout = timeout - 10
+                        if DoesEntityExist(targetPed) and not Config.OnDutyJobs[job] then
+                            local distance = #(GetEntityCoords(targetPed) - GetEntityCoords(monkey))
+                            if closestDistance == -1 or distance < closestDistance then
+                                closestPlayer = targetPed
+                                closestDistance = distance
                             end
-                            if playerJob and not Config.OnDutyJobs[playerJob] then
-                                local distance = #(GetEntityCoords(targetPed) - GetEntityCoords(monkey))
-                                if closestDistance == -1 or distance < closestDistance then
-                                    closestPlayer = targetPed
-                                    closestDistance = distance
-                                end
-                            end
-                            playerJob = nil
                         end
                     end
                     if closestPlayer and closestDistance < Config.MonkeySearchRadius then
@@ -256,12 +202,16 @@ RegisterNetEvent('TrunkMonkeys:client:SpawnMonkeys', function(vehicleNetId, othe
     end
 end)
 
-RegisterNetEvent('TrunkMonkeys:client:ReceivePlayerJob', function(job)
-    playerJob = job
-end)
-
 RegisterNetEvent('TrunkMonkeys:client:ReceiveHasMonkeys', function(hasMonkeysResult)
-    hasMonkeys = hasMonkeysResult
+    if hasMonkeysResult then
+        local playerPed = PlayerPedId()
+        local playerCoords = GetEntityCoords(playerPed)
+        local vehicle = GetClosestVehicle(playerCoords.x, playerCoords.y, playerCoords.z, Config.VehicleCheckRadius, 0, 70)
+        notification("The monkeys are loose! Good luck.", "success")
+        TriggerServerEvent('TrunkMonkeys:server:ReleaseMonkeys', GetVehicleNumberPlateText(vehicle), NetworkGetNetworkIdFromEntity(vehicle))
+    else
+        notification("You don't have any monkeys to release.", "error")
+    end
 end)
 
 RegisterNUICallback('ReleaseMonkeys', function(data, cb)

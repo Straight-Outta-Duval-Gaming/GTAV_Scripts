@@ -32,7 +32,7 @@ function RemoveMoney(source, amount)
     -- else
     --     return false
     -- end
-    return false
+    return true
 end
 
 -- Event to handle monkey purchase
@@ -60,27 +60,21 @@ RegisterNetEvent('TrunkMonkeys:server:ReleaseMonkeys', function(plate, vehicleNe
     local src = source
     vehicleData[vehicleNetId] = { hasMonkeys = false }
 
-    -- Get all players except the source player
+    -- Get all players and their jobs
     local players = GetPlayers()
-    local otherPlayers = {}
+    local playerData = {}
     for _, player in ipairs(players) do
         if tonumber(player) ~= src then
-            table.insert(otherPlayers, player)
+            playerData[player] = GetPlayerJob(tonumber(player))
         end
     end
 
-    TriggerClientEvent('TrunkMonkeys:client:SpawnMonkeys', src, vehicleNetId, otherPlayers)
+    TriggerClientEvent('TrunkMonkeys:client:SpawnMonkeys', src, vehicleNetId, playerData)
 end)
 
 -- Player disconnect handling
 AddEventHandler('playerDropped', function()
     local src = source
-end)
-
-RegisterNetEvent('TrunkMonkeys:server:GetPlayerJob', function(player)
-    local src = source
-    local job = GetPlayerJob(player)
-    TriggerClientEvent('TrunkMonkeys:client:ReceivePlayerJob', src, job)
 end)
 
 RegisterNetEvent('TrunkMonkeys:server:CheckHasMonkeys', function(vehicleNetId)

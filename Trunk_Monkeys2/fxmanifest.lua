@@ -8,7 +8,7 @@ version '1.0.0'
 dependencies {
 }
 
-shared_script 'config.lua'
+client_script 'config.lua'
 client_script 'client.lua'
 server_script 'server.lua'
 
