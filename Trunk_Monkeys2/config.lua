@@ -2,10 +2,10 @@ Config = {}
 
 -- [[ NPC Configuration ]]
 -- You can find other models here: https://docs.fivem.net/docs/game-references/ped-models/
-Config.NPCModel = 's_m_y_shop_01' -- This is a generic shopkeeper model
+Config.NPCModel = 'a_m_m_hillbilly_01'
 Config.NPCLocation = {
-coords = vector3(3623.61, 3766.6, 28.52), -- New Location
-heading = 180.0
+    coords = vector3(1700.19, 3763.15, 34.5),
+    heading = 180.0
 }
 
 -- [[ Monkey Configuration ]]
@@ -18,11 +18,11 @@ Config.VehicleCheckRadius = 6.0 -- How close you must be to your vehicle to buy 
 
 -- List of vehicle classes that are NOT allowed to store monkeys
 Config.DisallowedClasses = {
-[8] = true, -- Boats
-[13] = true, -- Cycles
-[15] = true, -- Helicopters
-[16] = true, -- Planes
-[21] = true, -- Trains
+    [8] = true, -- Boats
+    [13] = true, -- Cycles
+    [15] = true, -- Helicopters
+    [16] = true, -- Planes
+    [21] = true, -- Trains
 }
 
 -- List of jobs that are considered "on-duty" and cannot be targeted by monkeys
