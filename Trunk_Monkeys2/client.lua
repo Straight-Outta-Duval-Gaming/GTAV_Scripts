@@ -1,4 +1,5 @@
 local menuOpen = false
+local hasMonkeys = false
 
 -- Basic notification function
 local function notification(message, type)
@@ -21,21 +22,16 @@ CreateThread(function()
     end
 
     local x, y, z = Config.NPCLocation.coords.x, Config.NPCLocation.coords.y, Config.NPCLocation.coords.z
-    local foundGround, groundZ = GetGroundZFor_3dCoord(x, y, z + 50.0, false)
 
-    if not foundGround then
-        print("[TrunkMonkeys] Could not find ground for NPC, using configured Z-coordinate as fallback.")
-        groundZ = z
-    end
+    -- Spawn the NPC high in the air first
+    npc = CreatePed(4, hash, x, y, z + 50.0, Config.NPCLocation.heading, false, true)
 
-    print("[TrunkMonkeys] Spawning NPC at coordinates: " .. x .. ", " .. y .. ", " .. groundZ)
+    -- Let the game place the NPC on the ground
+    PlaceObjectOnGroundProperly(npc)
 
-    npc = CreatePed(4, hash, x, y, groundZ, Config.NPCLocation.heading, false, true)
     FreezeEntityPosition(npc, true)
     SetEntityInvincible(npc, true)
     SetBlockingOfNonTemporaryEvents(npc, true)
-    -- If the NPC still doesn't spawn correctly, you can try commenting out the line below.
-    PlaceObjectOnGroundProperly(npc)
 end)
 
 -- Main loop for player interaction
@@ -75,6 +71,7 @@ end)
 
 -- Event handler for when the player receives monkeys
 RegisterNetEvent('TrunkMonkeys:client:ReceiveMonkeys', function()
+    hasMonkeys = true
     notification("You have purchased a batch of angry monkeys! They are waiting in your trunk.", "success")
     local playerPed = PlayerPedId()
     local playerCoords = GetEntityCoords(playerPed)
@@ -93,6 +90,11 @@ end, false)
 
 -- Event to trigger monkey release (for phone integration, etc.)
 RegisterNetEvent('TrunkMonkeys:client:ReleaseMonkeys', function()
+    if not hasMonkeys then
+        notification("You don't have any monkeys to release.", "error")
+        return
+    end
+
     local playerPed = PlayerPedId()
     local playerCoords = GetEntityCoords(playerPed)
     local vehicle = GetClosestVehicle(playerCoords.x, playerCoords.y, playerCoords.z, Config.VehicleCheckRadius, 0, 70)
@@ -100,6 +102,7 @@ RegisterNetEvent('TrunkMonkeys:client:ReleaseMonkeys', function()
     if DoesEntityExist(vehicle) then
         local vehicleClass = GetVehicleClass(vehicle)
         if not Config.DisallowedClasses[vehicleClass] then
+            hasMonkeys = false
             notification("The monkeys are loose! Good luck.", "success")
             TriggerServerEvent('TrunkMonkeys:server:ReleaseMonkeys', GetVehicleNumberPlateText(vehicle), NetworkGetNetworkIdFromEntity(vehicle))
         else
@@ -159,8 +162,10 @@ RegisterNetEvent('TrunkMonkeys:client:SpawnMonkeys', function(vehicleNetId, play
                 local targeted, targetEntity = GetPlayerTargetEntity(PlayerId())
                 if targeted and IsPed(targetEntity) then
                     local isPlayer, player = IsPedAPlayer(targetEntity)
-                    if isPlayer and not Config.OnDutyJobs[playerData[tostring(player)]] then
-                        TaskCombatPed(monkey, targetEntity, 0, 16)
+                    if isPlayer then
+                        if not Config.OnDutyJobs[playerData[tostring(player)]] then
+                            TaskCombatPed(monkey, targetEntity, 0, 16)
+                        end
                     else
                         TaskCombatPed(monkey, targetEntity, 0, 16)
                     end

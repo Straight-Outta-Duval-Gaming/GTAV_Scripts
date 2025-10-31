@@ -1,7 +1,7 @@
--- Vehicle data table
+-- Player data table
 -- Note: This table is not persistent. If the server restarts, all monkey data will be lost.
 -- For persistence, integrate this with your server's database or storage solution.
-local vehicleData = {}
+local playerData = {}
 
 -- A placeholder function to get a player's job.
 -- Server owners should replace this with their actual job-checking function.
@@ -43,22 +43,26 @@ function RemoveMoney(source, amount)
     --     return false
     -- end
 
-    return false
+    return true
 end
 
 -- Event to handle monkey purchase
 RegisterNetEvent('TrunkMonkeys:server:BuyMonkeys', function(vehicleNetId)
     local src = source
 
-    -- Check if vehicle already has monkeys
-    if vehicleData[vehicleNetId] and vehicleData[vehicleNetId].hasMonkeys then
-        notify(src, "This vehicle already has monkeys.", "error")
+    if not playerData[src] then
+        playerData[src] = { hasMonkeys = false }
+    end
+
+    -- Check if player already has monkeys
+    if playerData[src].hasMonkeys then
+        notify(src, "You can only carry one set of monkeys at a time.", "error")
         return
     end
 
     -- Charge the player
     if RemoveMoney(src, Config.MonkeyPrice) then
-        vehicleData[vehicleNetId] = { hasMonkeys = true }
+        playerData[src].hasMonkeys = true
         TriggerClientEvent('TrunkMonkeys:client:ReceiveMonkeys', src)
         notify(src, "You paid $" .. Config.MonkeyPrice .. " for a batch of angry monkeys.", "success")
     else
@@ -69,25 +73,28 @@ end)
 -- Event to handle monkey release
 RegisterNetEvent('TrunkMonkeys:server:ReleaseMonkeys', function(plate, vehicleNetId)
     local src = source
-    if not vehicleData[vehicleNetId] or not vehicleData[vehicleNetId].hasMonkeys then
+    if not playerData[src] or not playerData[src].hasMonkeys then
         notify(src, "You don't have any monkeys to release.", "error")
         return
     end
-    vehicleData[vehicleNetId] = { hasMonkeys = false }
+    playerData[src].hasMonkeys = false
 
     -- Get all players and their jobs
     local players = GetPlayers()
-    local playerData = {}
+    local playersData = {}
     for _, player in ipairs(players) do
         if tonumber(player) ~= src then
-            playerData[player] = GetPlayerJob(tonumber(player))
+            playersData[player] = GetPlayerJob(tonumber(player))
         end
     end
 
-    TriggerClientEvent('TrunkMonkeys:client:SpawnMonkeys', src, vehicleNetId, playerData)
+    TriggerClientEvent('TrunkMonkeys:client:SpawnMonkeys', src, vehicleNetId, playersData)
 end)
 
 -- Player disconnect handling
 AddEventHandler('playerDropped', function()
     local src = source
+    if playerData[src] then
+        playerData[src] = nil
+    end
 end)
