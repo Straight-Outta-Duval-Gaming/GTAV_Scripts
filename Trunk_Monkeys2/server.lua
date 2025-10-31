@@ -1,5 +1,5 @@
--- Player data table
-local playerData = {}
+-- Vehicle data table
+local vehicleData = {}
 
 -- A placeholder function to get a player's job.
 -- Server owners should replace this with their actual job-checking function.
@@ -32,26 +32,22 @@ function RemoveMoney(source, amount)
     -- else
     --     return false
     -- end
-    return true
+    return false
 end
 
 -- Event to handle monkey purchase
-RegisterNetEvent('TrunkMonkeys:server:BuyMonkeys', function()
+RegisterNetEvent('TrunkMonkeys:server:BuyMonkeys', function(vehicleNetId)
     local src = source
 
-    if not playerData[src] then
-        playerData[src] = { hasMonkeys = false }
-    end
-
-    -- Check if player already has monkeys
-    if playerData[src] and playerData[src].hasMonkeys then
-        notify(src, "You can only carry one batch of monkeys at a time.", "error")
+    -- Check if vehicle already has monkeys
+    if vehicleData[vehicleNetId] and vehicleData[vehicleNetId].hasMonkeys then
+        notify(src, "This vehicle already has monkeys.", "error")
         return
     end
 
     -- Charge the player
     if RemoveMoney(src, Config.MonkeyPrice) then
-        playerData[src].hasMonkeys = true
+        vehicleData[vehicleNetId] = { hasMonkeys = true }
         TriggerClientEvent('TrunkMonkeys:client:ReceiveMonkeys', src)
         notify(src, "You paid $" .. Config.MonkeyPrice .. " for a batch of angry monkeys.", "success")
     else
@@ -62,7 +58,7 @@ end)
 -- Event to handle monkey release
 RegisterNetEvent('TrunkMonkeys:server:ReleaseMonkeys', function(plate, vehicleNetId)
     local src = source
-    playerData[src].hasMonkeys = false
+    vehicleData[vehicleNetId] = { hasMonkeys = false }
 
     -- Get all players except the source player
     local players = GetPlayers()
@@ -79,7 +75,19 @@ end)
 -- Player disconnect handling
 AddEventHandler('playerDropped', function()
     local src = source
-    if playerData[src] then
-        playerData[src] = nil
+end)
+
+RegisterNetEvent('TrunkMonkeys:server:GetPlayerJob', function(player)
+    local src = source
+    local job = GetPlayerJob(player)
+    TriggerClientEvent('TrunkMonkeys:client:ReceivePlayerJob', src, job)
+end)
+
+RegisterNetEvent('TrunkMonkeys:server:CheckHasMonkeys', function(vehicleNetId)
+    local src = source
+    local hasMonkeys = false
+    if vehicleData[vehicleNetId] and vehicleData[vehicleNetId].hasMonkeys then
+        hasMonkeys = true
     end
+    TriggerClientEvent('TrunkMonkeys:client:ReceiveHasMonkeys', src, hasMonkeys)
 end)
