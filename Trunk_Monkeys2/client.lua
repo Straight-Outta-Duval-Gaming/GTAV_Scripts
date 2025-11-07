@@ -1,5 +1,12 @@
 local isSpawningMonkeys = false -- Debounce to prevent spam
 
+-- Function to show a notification
+local function ShowNotification(message)
+    SetNotificationTextEntry("STRING")
+    AddTextComponentString(message)
+    DrawNotification(false, false)
+end
+
 -- Function to check if the vehicle is a valid type
 local function IsVehicleValid(vehicle)
     if not DoesEntityExist(vehicle) then return false end
@@ -68,18 +75,46 @@ CreateThread(function()
 end)
 
 -- [[ Purchase Logic ]]
+CreateThread(function()
+    while true do
+        Wait(1000) -- Check every second
+        local ped = PlayerPedId()
+        local coords = GetEntityCoords(ped)
+        local distance = #(coords - Config.NPCLocation.coords)
+
+        if distance < 10.0 then -- Player is near the NPC
+            if IsPedInAnyVehicle(ped, false) then
+                local vehicle = GetVehiclePedIsIn(ped, false)
+                if GetPedInVehicleSeat(vehicle, -1) == ped and GetEntitySpeed(vehicle) < 1.0 then
+                    ShowNotification("Press E to buy monkeys.")
+                    if IsControlJustReleased(0, 38) then -- E key
+                        TriggerEvent("TrunkMonkeys:client:AttemptPurchase")
+                    end
+                end
+            end
+        end
+    end
+end)
+
 RegisterNetEvent('TrunkMonkeys:client:AttemptPurchase', function()
-    local vehicle = GetNearbyValidVehicle()
+    local ped = PlayerPedId()
+    local vehicle
+
+    if IsPedInAnyVehicle(ped, false) then
+        vehicle = GetVehiclePedIsIn(ped, false)
+    else
+        vehicle = GetNearbyValidVehicle()
+    end
 
     -- 1. Check if a valid vehicle is nearby
-    if not vehicle then
-        QBCore.Functions.Notify("You must be near one of your vehicles (car, truck, or van) to buy monkeys.", "error")
+    if not vehicle or not IsVehicleValid(vehicle) then
+        ShowNotification("You must be in or near a valid vehicle.")
         return
     end
 
     -- 2. Check if the vehicle already has monkeys
     if Entity(vehicle).state.hasMonkeys then
-        QBCore.Functions.Notify("Your vehicle is already full of monkeys!", "warning")
+        ShowNotification("Your vehicle is already full of monkeys!")
         return
     end
 
@@ -87,7 +122,7 @@ RegisterNetEvent('TrunkMonkeys:client:AttemptPurchase', function()
     QBCore.Functions.TriggerCallback('TrunkMonkeys:server:BuyMonkeys', function(success)
         if success then
             -- 4. Payment was good, store monkeys in the vehicle
-            QBCore.Functions.Notify("Payment successful. Loading monkeys...", "success")
+            ShowNotification("Payment successful. Loading monkeys...")
             local vehicleNetId = VehToNet(vehicle)
             TriggerServerEvent('TrunkMonkeys:server:StoreMonkeysInVehicle', vehicleNetId)
             SetVehicleTrunkOpen(vehicle, false)
@@ -95,27 +130,33 @@ RegisterNetEvent('TrunkMonkeys:client:AttemptPurchase', function()
             SetVehicleTrunkOpen(vehicle, true)
         else
             -- 4. Payment failed
-            QBCore.Functions.Notify("You don't have enough money.", "error")
+            ShowNotification("You don't have enough money.")
         end
     end)
 end)
 
 -- [[ Release Logic ]]
--- This is the event your phone app needs to trigger.
 RegisterNetEvent('TrunkMonkeys:client:ReleaseMonkeys', function()
     if isSpawningMonkeys then return end -- Stop spam
 
-    local vehicle = GetNearbyValidVehicle()
+    local ped = PlayerPedId()
+    local vehicle
 
-    -- 1. Check if a valid vehicle is nearby
-    if not vehicle then
-        QBCore.Functions.Notify("You are not near a valid vehicle.", "error")
+    if IsPedInAnyVehicle(ped, false) then
+        vehicle = GetVehiclePedIsIn(ped, false)
+    else
+        vehicle = GetNearbyValidVehicle()
+    end
+
+    -- 1. Check if a valid vehicle is nearby and stationary
+    if not vehicle or not IsVehicleValid(vehicle) or GetEntitySpeed(vehicle) > 1.0 then
+        ShowNotification("You must be in or near a stationary valid vehicle.")
         return
     end
 
     -- 2. Check if the vehicle actually has monkeys
     if not Entity(vehicle).state.hasMonkeys then
-        QBCore.Functions.Notify("You don't have any monkeys stored in this vehicle.", "error")
+        ShowNotification("You don't have any monkeys stored in this vehicle.")
         return
     end
 
@@ -231,7 +272,7 @@ RegisterNetEvent('TrunkMonkeys:client:ReleaseMonkeys', function()
     end)
 end)
 
--- [[ Test Command / Phone Integration ]]
-RegisterCommand('releasemonkeys', function()
+-- [[ Command to release monkeys ]]
+RegisterCommand('remonk', function()
     TriggerEvent('TrunkMonkeys:client:ReleaseMonkeys')
 end, false)
