@@ -3,12 +3,12 @@ local isSpawningMonkeys = false -- Debounce to prevent spam
 -- [[ Zone Interaction ]]
 CreateThread(function()
     while true do
-        Wait(500)
+        Wait(0)
         local playerPed = PlayerPedId()
         local coords = GetEntityCoords(playerPed)
         local distance = #(coords - Config.PurchaseZone.coords)
 
-        if distance < Config.PurchaseZone.radius then
+        if distance < Config.PurchaseZone.radius and IsPedOnFoot(playerPed) then
             SetTextComponentFormat("STRING")
             AddTextComponentString("Press ~INPUT_CONTEXT~ to contact the monkey dealer.")
             DisplayHelpTextFromStringLabel(0, 0, 1, -1)

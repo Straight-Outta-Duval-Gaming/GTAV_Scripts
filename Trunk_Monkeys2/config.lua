@@ -2,7 +2,7 @@ Config = {}
 
 -- [[ Purchase Zone Configuration ]]
 Config.PurchaseZone = {
-    coords = vector3(1700.19, 3763.15, 34.5),
+    coords = vector3(3638.99, 3767.79, 28.55),
     radius = 5.0
 }
 
