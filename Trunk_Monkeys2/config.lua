@@ -1,11 +1,10 @@
 Config = {}
 
 -- [[ NPC Configuration ]]
--- You can find other models here: https://docs.fivem.net/docs/game-references/ped-models/
-Config.NPCModel = 's_m_y_shop_01' -- This is a generic shopkeeper model
-Config.NPCLocation = {
-coords = vector3(3623.61, 3766.6, 28.52), -- New Location
-heading = 180.0
+-- [[ Purchase Zone Configuration ]]
+Config.PurchaseZone = {
+    coords = vector3(3638.99, 3767.79, 28.55),
+    radius = 10.0
 }
 
 -- [[ Monkey Configuration ]]

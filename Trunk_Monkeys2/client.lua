@@ -46,52 +46,40 @@ local function GetNearbyValidVehicle()
 end
 
 -- [[ NPC and Target Setup ]]
-CreateThread(function()
-    -- Request the NPC model
-    RequestModel(Config.NPCModel)
-    while not HasModelLoaded(Config.NPCModel) do
-        Wait(100)
-    end
-
-    -- Spawn the NPC
-    local npc = CreatePed(4, Config.NPCModel, Config.NPCLocation.coords.x, Config.NPCLocation.coords.y, Config.NPCLocation.coords.z + 50.0, Config.NPCLocation.heading, true, true)
-    PlaceObjectOnGroundProperly(npc)
-    FreezeEntityPosition(npc, true)
-    SetEntityInvincible(npc, true)
-    SetBlockingOfNonTemporaryEvents(npc, true)
-
-    -- Add a target option to the NPC
-    exports['qb-target']:AddTargetModel(Config.NPCModel, {
-        options = {
-            {
-                type = "client",
-                event = "TrunkMonkeys:client:AttemptPurchase",
-                icon = "fas fa-monkey",
-                label = "Buy Attack Monkeys ($" .. Config.MonkeyPrice .. ")",
-            }
-        },
-        distance = 2.5
-    })
-end)
+-- [[ Purchase Logic ]]
 
 -- [[ Purchase Logic ]]
 CreateThread(function()
+    local inZone = false
     while true do
-        Wait(1000) -- Check every second
+        Wait(100) -- Check every so often
         local ped = PlayerPedId()
         local coords = GetEntityCoords(ped)
-        local distance = #(coords - Config.NPCLocation.coords)
+        local distance = #(coords - Config.PurchaseZone.coords)
 
-        if distance < 10.0 then -- Player is near the NPC
+        if distance < Config.PurchaseZone.radius then
+            if not inZone then
+                inZone = true
+                ShowNotification("Press E to buy monkeys.")
+            end
+
             if IsPedInAnyVehicle(ped, false) then
                 local vehicle = GetVehiclePedIsIn(ped, false)
                 if GetPedInVehicleSeat(vehicle, -1) == ped and GetEntitySpeed(vehicle) < 1.0 then
-                    ShowNotification("Press E to buy monkeys.")
                     if IsControlJustReleased(0, 38) then -- E key
                         TriggerEvent("TrunkMonkeys:client:AttemptPurchase")
                     end
                 end
+            else
+                if IsControlJustReleased(0, 38) then -- E key
+                    TriggerEvent("TrunkMonkeys:client:AttemptPurchase")
+                end
             end
+        else
+            if inZone then
+                inZone = false
+            end
+            Wait(1000) -- Player is not in the zone, no need to check every frame
         end
     end
 end)
@@ -101,7 +89,13 @@ RegisterNetEvent('TrunkMonkeys:client:AttemptPurchase', function()
     local vehicle
 
     if IsPedInAnyVehicle(ped, false) then
-        vehicle = GetVehiclePedIsIn(ped, false)
+        local currentVehicle = GetVehiclePedIsIn(ped, false)
+        if GetPedInVehicleSeat(currentVehicle, -1) == ped then
+            vehicle = currentVehicle
+        else
+            ShowNotification("You must be the driver to purchase the monkeys.")
+            return
+        end
     else
         vehicle = GetNearbyValidVehicle()
     end
@@ -143,7 +137,13 @@ RegisterNetEvent('TrunkMonkeys:client:ReleaseMonkeys', function()
     local vehicle
 
     if IsPedInAnyVehicle(ped, false) then
-        vehicle = GetVehiclePedIsIn(ped, false)
+        local currentVehicle = GetVehiclePedIsIn(ped, false)
+        if GetPedInVehicleSeat(currentVehicle, -1) == ped then
+            vehicle = currentVehicle
+        else
+            ShowNotification("You must be the driver to release the monkeys.")
+            return
+        end
     else
         vehicle = GetNearbyValidVehicle()
     end
