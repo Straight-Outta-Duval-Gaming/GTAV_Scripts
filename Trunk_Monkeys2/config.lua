@@ -1,6 +1,5 @@
 Config = {}
 
--- [[ NPC Configuration ]]
 -- [[ Purchase Zone Configuration ]]
 Config.PurchaseZone = {
     coords = vector3(3638.99, 3767.79, 28.55),
