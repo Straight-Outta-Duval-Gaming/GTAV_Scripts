@@ -51,3 +51,20 @@ QBCore.Functions.CreateCallback('TrunkMonkeys:server:GetPlayerJob', function(sou
         cb(nil)
     end
 end)
+
+QBCore.Functions.CreateCallback('TrunkMonkeys:server:IsVehicleOwner', function(source, cb, plate)
+    local player = QBCore.Functions.GetPlayer(source)
+    if not player then
+        cb(false)
+        return
+    end
+
+    local foundVehicle = false
+    for _, vehicle in pairs(player.PlayerData.vehicles) do
+        if vehicle.plate == plate then
+            foundVehicle = true
+            break
+        end
+    end
+    cb(foundVehicle)
+end)
