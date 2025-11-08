@@ -1,3 +1,5 @@
+local QBCore = exports['qb-core']:GetCoreObject()
+
 -- Callback to handle the purchase
 QBCore.Functions.CreateCallback('TrunkMonkeys:server:BuyMonkeys', function(source, cb)
     local player = QBCore.Functions.GetPlayer(source)

@@ -1,3 +1,4 @@
+local QBCore = exports['qb-core']:GetCoreObject()
 local isSpawningMonkeys = false -- Debounce to prevent spam
 
 -- Function to check if the vehicle is a valid type
